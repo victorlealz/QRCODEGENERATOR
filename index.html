@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a4f93">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Gerador de QR Code</title>
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="Gerador de QR Code">
+        <img class="brand-logo" src="assets/logo.png" alt="Logo institucional" width="52" height="52">
+        <h1>Gerador de QR Code</h1>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="card" aria-labelledby="generator-title">
+        <h2 id="generator-title" class="visually-hidden">Gerador</h2>
+
+        <form id="qr-form" novalidate>
+          <div class="field-group">
+            <label class="field-label" for="url-input">URL</label>
+            <input
+              id="url-input"
+              name="url"
+              type="url"
+              inputmode="url"
+              autocomplete="url"
+              autocapitalize="none"
+              spellcheck="false"
+              placeholder="https://"
+              required
+              aria-describedby="form-status privacy-note"
+            >
+          </div>
+
+          <div class="field-group size-field">
+            <label class="field-label" for="size-select">Tamanho</label>
+            <select id="size-select" name="size">
+              <option value="300">300 × 300</option>
+              <option value="500" selected>500 × 500</option>
+              <option value="800">800 × 800</option>
+              <option value="1000">1000 × 1000</option>
+            </select>
+          </div>
+
+          <div class="button-grid">
+            <button class="button button-primary" type="submit">Gerar QR Code</button>
+            <button class="button button-secondary" id="copy-button" type="button">Copiar URL</button>
+            <button class="button button-secondary" id="clear-button" type="button">Limpar</button>
+          </div>
+
+          <p id="form-status" class="status" role="status" aria-live="polite"></p>
+          <p id="privacy-note" class="privacy-note">Privacidade: o QR Code é gerado diretamente no seu navegador. Nenhum endereço informado é enviado ou armazenado.</p>
+        </form>
+
+        <section id="qr-result" class="result" aria-label="QR Code gerado" hidden>
+          <div id="qr-canvas-wrap" class="qr-frame"></div>
+          <div class="download-grid">
+            <button class="button button-primary" id="download-png" type="button">Baixar PNG</button>
+            <button class="button button-dark" id="download-svg" type="button">Baixar SVG</button>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="footer">Gerador Institucional de QR Code</footer>
+  </div>
+
+  <script src="vendor/qrcode-generator.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
