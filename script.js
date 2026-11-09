@@ -2,6 +2,7 @@
 
 const CONFIG = Object.freeze({
   logoPath: 'assets/logo.png',
+  mapLogoPath: 'assets/map.png',
   fileName: 'qr-code-institucional',
   quietZoneModules: 4,
   logoWidthRatio: 0.18,
@@ -10,9 +11,27 @@ const CONFIG = Object.freeze({
   backgroundColor: '#ffffff'
 });
 
+const ALLOWED_UPLOAD_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/svg+xml'
+]);
+
+const ALLOWED_UPLOAD_EXTENSIONS = /\.(png|jpe?g|webp|svg)$/i;
+
 const form = document.getElementById('qr-form');
 const urlInput = document.getElementById('url-input');
 const sizeSelect = document.getElementById('size-select');
+const logoSelect = document.getElementById('logo-select');
+const customLogoOptions = document.getElementById('custom-logo-options');
+const customLogoSource = document.getElementById('custom-logo-source');
+const customLogoFile = document.getElementById('custom-logo-file');
+const customLogoUrl = document.getElementById('custom-logo-url');
+const customLogoSize = document.getElementById('custom-logo-size');
+const customLogoSizeValue = document.getElementById('custom-logo-size-value');
+const customLogoUploadPanel = document.getElementById('custom-logo-upload-panel');
+const customLogoUrlPanel = document.getElementById('custom-logo-url-panel');
 const copyButton = document.getElementById('copy-button');
 const clearButton = document.getElementById('clear-button');
 const status = document.getElementById('form-status');
@@ -24,37 +43,13 @@ const downloadSvgButton = document.getElementById('download-svg');
 let currentQr = null;
 let currentCanvas = null;
 let currentSize = 500;
-let logoDataUrl = '';
+let currentLogoDataUrl = '';
+let currentLogoWidthRatio = CONFIG.logoWidthRatio;
+let customUploadedLogo = null;
 
-const logoImage = new Image();
-logoImage.decoding = 'async';
-
-const logoReady = new Promise((resolve, reject) => {
-  const finishLoad = () => {
-    try {
-      if (!logoImage.naturalWidth || !logoImage.naturalHeight) {
-        throw new Error('A logo institucional foi carregada, mas a imagem é inválida.');
-      }
-      logoDataUrl = imageToDataUrl(logoImage);
-      resolve();
-    } catch (error) {
-      reject(error);
-    }
-  };
-
-  logoImage.addEventListener('load', finishLoad, { once: true });
-  logoImage.addEventListener('error', () => {
-    reject(new Error(`Falha ao carregar a logo institucional em ${CONFIG.logoPath}.`));
-  }, { once: true });
-
-  // Registra os eventos antes de iniciar o carregamento para evitar perder
-  // o evento "load" quando a imagem já estiver em cache.
-  logoImage.src = CONFIG.logoPath;
-
-  if (logoImage.complete && logoImage.naturalWidth > 0) {
-    finishLoad();
-  }
-});
+const imageCache = new Map();
+const logoReady = loadImageResource(CONFIG.logoPath, false, 'Logo DECC');
+const mapLogoReady = loadImageResource(CONFIG.mapLogoPath, false, 'logo de mapa');
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -72,10 +67,56 @@ sizeSelect.addEventListener('change', async () => {
   }
 });
 
+logoSelect.addEventListener('change', async () => {
+  updateLogoControls();
+  clearStatus();
+  if (currentQr && logoSelect.value !== 'custom') {
+    await generateQrCode();
+  }
+});
+
+customLogoSource.addEventListener('change', () => {
+  updateLogoControls();
+  clearStatus();
+});
+
+customLogoFile.addEventListener('change', async () => {
+  clearStatus();
+  customUploadedLogo = null;
+
+  const file = customLogoFile.files && customLogoFile.files[0];
+  if (!file) return;
+
+  try {
+    customUploadedLogo = await loadUploadedLogo(file);
+    if (currentQr && logoSelect.value === 'custom' && customLogoSource.value === 'upload') {
+      await generateQrCode();
+    }
+  } catch (error) {
+    customLogoFile.value = '';
+    setStatus(toUserMessage(error), false);
+  }
+});
+
+customLogoUrl.addEventListener('input', () => {
+  customLogoUrl.removeAttribute('aria-invalid');
+  clearStatus();
+});
+
+customLogoSize.addEventListener('input', async () => {
+  updateCustomLogoSizeLabel();
+  if (currentQr && logoSelect.value === 'custom') {
+    await generateQrCode();
+  }
+});
+
 urlInput.addEventListener('input', () => {
   urlInput.removeAttribute('aria-invalid');
   clearStatus();
 });
+
+updateLogoControls();
+updateCustomLogoSizeLabel();
 
 async function generateQrCode() {
   clearStatus();
@@ -84,17 +125,22 @@ async function generateQrCode() {
   if (!normalizedUrl) return;
 
   try {
-    await logoReady;
+    const selectedLogo = await resolveSelectedLogo();
 
     currentSize = Number(sizeSelect.value);
     currentQr = createQr(normalizedUrl);
-    currentCanvas = renderCanvas(currentQr, currentSize, logoImage);
+    currentLogoDataUrl = selectedLogo ? selectedLogo.dataUrl : '';
+    currentLogoWidthRatio = getSelectedLogoWidthRatio();
+    currentCanvas = renderCanvas(
+      currentQr,
+      currentSize,
+      selectedLogo ? selectedLogo.image : null,
+      currentLogoWidthRatio
+    );
 
     canvasWrap.replaceChildren(currentCanvas);
     result.hidden = false;
 
-    // A rolagem é apenas um detalhe de interface e nunca deve invalidar um QR
-    // que já foi gerado com sucesso.
     try {
       result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch {
@@ -104,6 +150,8 @@ async function generateQrCode() {
     console.error('[Gerador QR] Falha ao gerar QR Code:', error);
     currentQr = null;
     currentCanvas = null;
+    currentLogoDataUrl = '';
+    currentLogoWidthRatio = CONFIG.logoWidthRatio;
     result.hidden = true;
     canvasWrap.replaceChildren();
     setStatus(toUserMessage(error), false);
@@ -121,7 +169,7 @@ function createQr(data) {
   return qr;
 }
 
-function renderCanvas(qr, size, image) {
+function renderCanvas(qr, size, image, logoWidthRatio = CONFIG.logoWidthRatio) {
   const moduleCount = qr.getModuleCount();
   const quiet = CONFIG.quietZoneModules;
   const totalModules = moduleCount + quiet * 2;
@@ -152,12 +200,16 @@ function renderCanvas(qr, size, image) {
     }
   }
 
-  drawLogo(ctx, size, image);
+  if (image) {
+    drawLogo(ctx, size, image, logoWidthRatio);
+  }
   return canvas;
 }
 
-function drawLogo(ctx, size, image) {
-  const logoSize = Math.round(size * CONFIG.logoWidthRatio);
+function drawLogo(ctx, size, image, logoWidthRatio = CONFIG.logoWidthRatio) {
+  if (!image) return;
+
+  const logoSize = Math.round(size * logoWidthRatio);
   const padding = Math.max(5, Math.round(size * CONFIG.logoPaddingRatio));
   const center = size / 2;
   const backgroundRadius = logoSize / 2 + padding;
@@ -217,6 +269,163 @@ function invalidateUrl(message) {
   setStatus(message, false);
 }
 
+async function resolveSelectedLogo() {
+  switch (logoSelect.value) {
+    case 'decc':
+      return logoReady;
+    case 'none':
+      return null;
+    case 'map':
+      return mapLogoReady;
+    case 'custom':
+      return resolveCustomLogo();
+    default:
+      return logoReady;
+  }
+}
+
+async function resolveCustomLogo() {
+  if (customLogoSource.value === 'upload') {
+    if (!customUploadedLogo) {
+      throw new Error('Selecione uma imagem para usar como logo personalizada.');
+    }
+    return customUploadedLogo;
+  }
+
+  const rawUrl = customLogoUrl.value.trim();
+  if (!rawUrl) {
+    customLogoUrl.setAttribute('aria-invalid', 'true');
+    customLogoUrl.focus();
+    throw new Error('Informe a URL da imagem no FlatIcon.');
+  }
+
+  const imageUrl = normalizeFlaticonImageUrl(rawUrl);
+  customLogoUrl.removeAttribute('aria-invalid');
+  return loadImageResource(imageUrl, true, 'logo personalizada do FlatIcon');
+}
+
+function normalizeFlaticonImageUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error('Informe uma URL válida do FlatIcon.');
+  }
+
+  if (parsed.protocol !== 'https:') {
+    throw new Error('A URL do FlatIcon deve começar com https://.');
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname !== 'flaticon.com' && !hostname.endsWith('.flaticon.com')) {
+    throw new Error('Use uma URL pertencente ao domínio flaticon.com.');
+  }
+
+  const iconIdMatch = parsed.pathname.match(/_(\d+)(?:\.[a-z0-9]+)?(?:\/)?$/i);
+  const isFlaticonPage = hostname === 'flaticon.com' || hostname === 'www.flaticon.com';
+
+  if (isFlaticonPage && iconIdMatch) {
+    const iconId = Number(iconIdMatch[1]);
+    const folder = Math.floor(iconId / 1000);
+    return `https://cdn-icons-png.flaticon.com/512/${folder}/${iconId}.png`;
+  }
+
+  if (/\.(png|jpe?g|webp|svg)$/i.test(parsed.pathname)) {
+    return parsed.href;
+  }
+
+  throw new Error('Use a página de um ícone do FlatIcon ou uma URL direta de imagem PNG, JPG, WEBP ou SVG do FlatIcon.');
+}
+
+function updateLogoControls() {
+  const isCustom = logoSelect.value === 'custom';
+  const isUrl = customLogoSource.value === 'url';
+
+  customLogoOptions.hidden = !isCustom;
+  customLogoUploadPanel.hidden = !isCustom || isUrl;
+  customLogoUrlPanel.hidden = !isCustom || !isUrl;
+}
+
+function getSelectedLogoWidthRatio() {
+  if (logoSelect.value !== 'custom') {
+    return CONFIG.logoWidthRatio;
+  }
+
+  const selectedPercent = Number(customLogoSize.value);
+  if (!Number.isFinite(selectedPercent)) {
+    return CONFIG.logoWidthRatio;
+  }
+
+  return Math.min(0.30, Math.max(0.10, selectedPercent / 100));
+}
+
+function updateCustomLogoSizeLabel() {
+  customLogoSizeValue.textContent = `${customLogoSize.value}%`;
+}
+
+async function loadUploadedLogo(file) {
+  const hasAllowedMime = !file.type || ALLOWED_UPLOAD_TYPES.has(file.type);
+  const hasAllowedExtension = ALLOWED_UPLOAD_EXTENSIONS.test(file.name);
+
+  if (!hasAllowedMime || !hasAllowedExtension) {
+    throw new Error('Use uma imagem PNG, JPG/JPEG, WEBP ou SVG.');
+  }
+
+  const dataUrl = await readFileAsDataUrl(file);
+  return loadImageResource(dataUrl, false, 'imagem enviada', false);
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve(String(reader.result || '')), { once: true });
+    reader.addEventListener('error', () => reject(new Error('Não foi possível ler a imagem enviada.')), { once: true });
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageResource(src, useCors, label, useCache = true) {
+  const cacheKey = `${useCors ? 'cors' : 'local'}:${src}`;
+  if (useCache && imageCache.has(cacheKey)) {
+    return imageCache.get(cacheKey);
+  }
+
+  const promise = new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = 'async';
+    if (useCors) {
+      image.crossOrigin = 'anonymous';
+    }
+
+    image.addEventListener('load', () => {
+      try {
+        if (!image.naturalWidth || !image.naturalHeight) {
+          throw new Error(`A ${label} foi carregada, mas a imagem é inválida.`);
+        }
+        resolve({
+          image,
+          dataUrl: imageToDataUrl(image)
+        });
+      } catch (error) {
+        reject(error);
+      }
+    }, { once: true });
+
+    image.addEventListener('error', () => {
+      reject(new Error(`Falha ao carregar a ${label}.`));
+    }, { once: true });
+
+    image.src = src;
+  });
+
+  if (useCache) {
+    imageCache.set(cacheKey, promise);
+    promise.catch(() => imageCache.delete(cacheKey));
+  }
+
+  return promise;
+}
+
 async function copyUrl() {
   clearStatus();
   const normalizedUrl = getValidatedUrl();
@@ -255,9 +464,15 @@ function clearAll() {
   currentQr = null;
   currentCanvas = null;
   currentSize = 500;
+  currentLogoDataUrl = '';
+  currentLogoWidthRatio = CONFIG.logoWidthRatio;
+  customUploadedLogo = null;
   result.hidden = true;
   canvasWrap.replaceChildren();
   urlInput.removeAttribute('aria-invalid');
+  customLogoUrl.removeAttribute('aria-invalid');
+  updateLogoControls();
+  updateCustomLogoSizeLabel();
   clearStatus();
   urlInput.focus();
 }
@@ -279,18 +494,18 @@ function downloadPng() {
 }
 
 function downloadSvg() {
-  if (!currentQr || !logoDataUrl) return;
+  if (!currentQr) return;
 
-  const svg = buildSvg(currentQr, logoDataUrl);
+  const svg = buildSvg(currentQr, currentLogoDataUrl, currentLogoWidthRatio);
   const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
   downloadBlob(blob, `${CONFIG.fileName}.svg`);
 }
 
-function buildSvg(qr, embeddedLogo) {
+function buildSvg(qr, embeddedLogo, logoWidthRatio = CONFIG.logoWidthRatio) {
   const moduleCount = qr.getModuleCount();
   const quiet = CONFIG.quietZoneModules;
   const total = moduleCount + quiet * 2;
-  const logoSize = total * CONFIG.logoWidthRatio;
+  const logoSize = total * logoWidthRatio;
   const padding = total * CONFIG.logoPaddingRatio;
   const center = total / 2;
   const logoX = center - logoSize / 2;
@@ -307,19 +522,34 @@ function buildSvg(qr, embeddedLogo) {
     }
   }
 
-  return [
+  const svgParts = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" shape-rendering="crispEdges">`,
-    '<title>QR Code institucional</title>',
-    '<defs>',
-    `<clipPath id="${clipId}"><circle cx="${center}" cy="${center}" r="${logoSize / 2}"/></clipPath>`,
-    '</defs>',
+    '<title>QR Code</title>'
+  ];
+
+  if (embeddedLogo) {
+    svgParts.push(
+      '<defs>',
+      `<clipPath id="${clipId}"><circle cx="${center}" cy="${center}" r="${logoSize / 2}"/></clipPath>`,
+      '</defs>'
+    );
+  }
+
+  svgParts.push(
     `<rect width="${total}" height="${total}" fill="${CONFIG.backgroundColor}"/>`,
-    `<path d="${path}" fill="${CONFIG.qrColor}"/>`,
-    `<circle cx="${center}" cy="${center}" r="${whiteRadius}" fill="${CONFIG.backgroundColor}"/>`,
-    `<image href="${embeddedLogo}" x="${logoX}" y="${logoY}" width="${logoSize}" height="${logoSize}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clipId})"/>`,
-    '</svg>'
-  ].join('');
+    `<path d="${path}" fill="${CONFIG.qrColor}"/>`
+  );
+
+  if (embeddedLogo) {
+    svgParts.push(
+      `<circle cx="${center}" cy="${center}" r="${whiteRadius}" fill="${CONFIG.backgroundColor}"/>`,
+      `<image href="${embeddedLogo}" x="${logoX}" y="${logoY}" width="${logoSize}" height="${logoSize}" preserveAspectRatio="xMidYMid meet" clip-path="url(#${clipId})"/>`
+    );
+  }
+
+  svgParts.push('</svg>');
+  return svgParts.join('');
 }
 
 function imageToDataUrl(image) {
@@ -364,14 +594,23 @@ function toUserMessage(error) {
   if (/Biblioteca de QR Code indisponível/i.test(message)) {
     return 'Biblioteca de QR Code não carregada. Verifique o arquivo vendor/qrcode-generator.js.';
   }
-  if (/logo institucional/i.test(message)) {
-    return 'Não foi possível carregar a logo. Verifique o arquivo assets/logo.png.';
+  if (/Logo DECC|assets\/logo\.png/i.test(message)) {
+    return 'Não foi possível carregar a Logo DECC. Verifique o arquivo assets/logo.png.';
+  }
+  if (/logo de mapa|assets\/map\.png/i.test(message)) {
+    return 'Não foi possível carregar o símbolo de mapa. Verifique o arquivo assets/map.png.';
+  }
+  if (/Selecione uma imagem|URL da imagem|URL válida do FlatIcon|domínio flaticon\.com|página de um ícone|imagem PNG|imagem enviada/i.test(message)) {
+    return message;
+  }
+  if (/Falha ao carregar a logo personalizada/i.test(message)) {
+    return 'Não foi possível carregar a imagem do FlatIcon. Confirme se o endereço é público e se o servidor permite o uso da imagem no navegador.';
   }
   if (/Canvas/i.test(message)) {
     return 'O navegador não conseguiu renderizar o QR Code em Canvas.';
   }
   if (/SecurityError|tainted|cross-origin/i.test(message)) {
-    return 'O navegador bloqueou o uso da logo por uma restrição de segurança.';
+    return 'O navegador bloqueou o uso da imagem por uma restrição de segurança do servidor de origem.';
   }
 
   return `Não foi possível gerar o QR Code. Detalhe: ${message}`;

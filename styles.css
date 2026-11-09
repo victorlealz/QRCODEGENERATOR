@@ -69,12 +69,10 @@ select {
 }
 
 .brand-logo {
-  width: 52px;
-  height: 52px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
-  border-radius: 50%;
-  object-fit: cover;
-  background: var(--black);
+  object-fit: contain;
 }
 
 h1 {
@@ -299,9 +297,9 @@ input[aria-invalid="true"] {
     min-height: 74px;
   }
 
-  .brand-logo {
-    width: 46px;
-    height: 46px;
+ .brand-logo {
+    width: 36px;
+    height: 36px;
   }
 
   .button-grid {
@@ -341,4 +339,65 @@ input[aria-invalid="true"] {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.custom-logo-options {
+  margin-top: 18px;
+}
+
+.custom-logo-options[hidden],
+#custom-logo-upload-panel[hidden],
+#custom-logo-url-panel[hidden] {
+  display: none;
+}
+
+input[type="file"] {
+  padding: 12px 15px;
+}
+
+.field-help {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.footer a {
+  color: inherit;
+}
+
+
+.custom-logo-size-field .field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#custom-logo-size-value {
+  color: var(--blue-dark);
+  font-size: 0.8rem;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+input[type="range"] {
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--blue);
+}
+
+input[type="range"]:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+input[type="range"]:focus-visible {
+  outline: 3px solid rgba(10, 79, 147, 0.18);
+  outline-offset: 4px;
 }

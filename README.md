@@ -1,18 +1,24 @@
-# Gerador Institucional de QR Code
+# Gerador de QR CODE WinZip144
 
-Aplicação web estática, responsiva e sem backend para gerar QR Codes de URLs com a logomarca institucional centralizada.
+Aplicação web estática, responsiva e sem backend para gerar QR Codes de URLs, com opção de usar a Logo DECC, gerar sem logo, usar um símbolo de mapa ou inserir uma imagem personalizada.
 
-O QR Code é criado integralmente no navegador. A URL informada não é enviada para APIs, servidores externos, bancos de dados, serviços de analytics ou trackers.
+O QR Code é criado integralmente no navegador. A URL informada para ser convertida em QR Code não é enviada para APIs, servidores externos, bancos de dados, serviços de analytics ou trackers. Quando o usuário escolhe uma logo personalizada por URL do FlatIcon, somente a imagem escolhida é carregada do domínio do FlatIcon.
 
 ## Funcionalidades
 
 - geração local de QR Code para URLs `http://` e `https://`;
 - correção de erro nível **H**;
-- logo institucional circular no centro;
+- **Logo DECC** (`assets/logo.png`) aplicada por padrão no centro do QR Code;
+- opção de gerar QR Code **sem logo**;
+- opção fixa de QR Code com símbolo de **Mapa** (`assets/map.png`), baseada no recurso indicado do FlatIcon;
+- opção de imagem personalizada por **upload** em PNG, JPG/JPEG, WEBP ou SVG;
+- opção de imagem personalizada por **URL do FlatIcon**, aceitando tanto a página do ícone quanto uma URL direta de imagem hospedada em domínio do FlatIcon;
+- controle deslizante de **tamanho da imagem personalizada**, de 10% a 30% da largura do QR Code, aplicável tanto a upload quanto a URL;
+- pequena logo de QR Code (`assets/qr-code.png`) à esquerda do título da página;
 - margem de segurança (quiet zone) de 4 módulos;
 - tamanhos de 300, 500, 800 e 1000 pixels;
 - download em PNG;
-- download em SVG com a logo incorporada ao próprio arquivo;
+- download em SVG com a logo escolhida incorporada ao próprio arquivo, quando houver logo;
 - cópia da URL para a área de transferência;
 - validação de URL;
 - interface responsiva para desktop e dispositivos móveis;
@@ -27,7 +33,7 @@ O QR Code é criado integralmente no navegador. A URL informada não é enviada 
 - JavaScript moderno;
 - **QRCode for JavaScript**, de Kazuhiko Arase, licenciado sob MIT e incluído localmente em `vendor/qrcode-generator.js`.
 
-A biblioteca `qr-code-styling` foi considerada, mas o projeto usa um encoder QR menor incorporado ao repositório para manter a aplicação totalmente autocontida, sem CDN e sem dependência de build. A renderização da logo, PNG e SVG é feita pelo próprio `script.js`.
+A biblioteca `qr-code-styling` foi considerada, mas o projeto usa um encoder QR menor incorporado ao repositório para manter a aplicação autocontida, sem CDN para a biblioteca de QR Code e sem dependência de build. A renderização da logo, PNG e SVG é feita pelo próprio `script.js`.
 
 ## Estrutura
 
@@ -43,7 +49,9 @@ gerador-qr-institucional/
 ├── THIRD_PARTY_NOTICES.md
 ├── assets/
 │   ├── logo.png
-│   └── logo-original.png
+│   ├── logo-original.png
+│   ├── map.png
+│   └── qr-code.png
 └── vendor/
     ├── qrcode-generator.js
     ├── LICENSE-qrcode-generator.txt
@@ -52,7 +60,7 @@ gerador-qr-institucional/
 
 ## Logo institucional
 
-A logo utilizada pelo QR Code está em:
+A **Logo DECC**, usada por padrão no QR Code, está em:
 
 ```text
 assets/logo.png
@@ -62,7 +70,45 @@ O arquivo `assets/logo-original.png` preserva a imagem original fornecida.
 
 A versão `assets/logo.png` foi recortada e preparada em formato circular, eliminando a grande margem preta da imagem original para melhorar a leitura do QR Code.
 
-### Trocar a logo
+O seletor **Logo do QR Code** oferece quatro opções:
+
+1. **Logo DECC** — opção padrão, usando `assets/logo.png`;
+2. **Sem logo** — gera o QR Code sem imagem central e sem a área branca reservada à logo;
+3. **Mapa** — usa `assets/map.png`;
+4. **Personalizada** — permite escolher uma imagem por upload ou por URL do FlatIcon.
+
+Quando **Personalizada** está selecionada, o controle **Tamanho da imagem** permite modular a imagem central entre **10% e 30%** da largura do QR Code. O valor padrão é **18%**. O ajuste é aplicado tanto às imagens enviadas por upload quanto às carregadas por URL do FlatIcon e também é preservado no download SVG.
+
+### Imagem personalizada por upload
+
+São aceitos:
+
+```text
+PNG
+JPG/JPEG
+WEBP
+SVG
+```
+
+A imagem é lida diretamente pelo navegador e incorporada ao QR Code gerado.
+
+### Imagem personalizada por URL do FlatIcon
+
+São aceitos dois tipos de endereço:
+
+```text
+https://www.flaticon.com/free-icon/map_854878
+```
+
+ou uma URL direta de imagem em domínio do FlatIcon, por exemplo:
+
+```text
+https://cdn-icons-png.flaticon.com/512/854/854878.png
+```
+
+Quando o usuário informa uma página comum de ícone do FlatIcon, o `script.js` identifica o número do recurso e monta o endereço correspondente da imagem PNG no CDN do FlatIcon. Não é realizado `fetch` da página do FlatIcon.
+
+### Trocar a Logo DECC
 
 1. Substitua `assets/logo.png` por outra imagem PNG quadrada.
 2. Mantenha o mesmo nome de arquivo.
@@ -109,24 +155,28 @@ Para preservar a leitura, recomenda-se manter o QR Code preto sobre fundo branco
 No arquivo `index.html`, altere:
 
 ```html
-<title>Gerador de QR Code</title>
+<title>Gerador de QR CODE WinZip144</title>
 ```
 
 E o título visível:
 
 ```html
-<h1>Gerador de QR Code</h1>
+<h1>Gerador de QR CODE WinZip144</h1>
 ```
 
-O rodapé também pode ser alterado diretamente em `index.html`:
+O cabeçalho exibe o título textual acompanhado, à esquerda, por uma pequena logo de QR Code armazenada em:
 
-```html
-<footer class="footer">Gerador Institucional de QR Code</footer>
+```text
+assets/qr-code.png
 ```
+
+Essa imagem afeta somente o cabeçalho da página e não altera a Logo DECC usada por padrão dentro do QR Code gerado.
+
+O rodapé também pode ser alterado diretamente em `index.html`.
 
 ## Nome da instituição
 
-O layout foi deixado intencionalmente sem nome institucional, exibindo somente a logo e o título. Para adicionar o nome, insira o texto desejado dentro do elemento `.brand` em `index.html` ou substitua o conteúdo do `<h1>`.
+O layout foi mantido sem nome institucional adicional no cabeçalho. O título **Gerador de QR CODE WinZip144** é exibido ao lado da pequena logo `assets/qr-code.png`. A identidade DECC permanece como logo padrão dentro do QR Code.
 
 ## Executar localmente
 
@@ -161,9 +211,11 @@ git push -u origin main
 
 Também é possível enviar os arquivos pela interface web do GitHub.
 
+Para sobrescrever o conteúdo do repositório já existente `victorlealz/QRCODEGENERATOR`, mantenha todos os arquivos e pastas deste pacote na mesma raiz atualmente publicada pelo projeto.
+
 ## Publicar no Cloudflare Pages
 
-A documentação atual do Cloudflare Pages permite conectar um repositório GitHub e publicar sites HTML estáticos sem framework e sem etapa real de build.
+A documentação do Cloudflare Pages permite conectar um repositório GitHub e publicar sites HTML estáticos sem framework e sem etapa real de build.
 
 1. Entre no painel do Cloudflare.
 2. Abra **Workers & Pages**.
@@ -182,7 +234,7 @@ Build output directory: .
 Root directory: deixar em branco
 ```
 
-Também é possível deixar o campo **Build command** em branco em projetos sem framework. O comando `exit 0` é uma opção recomendada pela documentação do Cloudflare para projetos estáticos sem processo de build.
+Também é possível deixar o campo **Build command** em branco em projetos sem framework. O comando `exit 0` é uma opção usada em projetos estáticos sem processo de build.
 
 9. Inicie o deploy.
 
@@ -205,12 +257,13 @@ Documentação oficial:
 1. O navegador valida a URL com a API nativa `URL`.
 2. O encoder local gera a matriz do QR Code com correção de erro nível H.
 3. O JavaScript desenha os módulos pretos com quiet zone de 4 módulos.
-4. Uma área branca circular protege a região central.
-5. A logo é desenhada no centro com 18% da largura do QR Code.
-6. O PNG é exportado do `<canvas>`.
-7. O SVG é construído localmente, incorporando a logo como `data:` para que o arquivo seja independente.
-
-Nenhuma etapa envia a URL para a internet.
+4. O seletor define se o QR Code usará Logo DECC, nenhuma logo, Mapa ou uma imagem personalizada.
+5. Quando existe uma logo, uma área branca circular protege a região central. Logo DECC e Mapa mantêm 18% da largura do QR Code; na opção **Personalizada**, o usuário pode ajustar esse tamanho entre 10% e 30%.
+6. O controle de tamanho da opção **Personalizada** funciona da mesma forma para upload e URL do FlatIcon.
+7. Quando a opção **Sem logo** é usada, o QR Code é renderizado integralmente sem recorte branco central.
+8. O PNG é exportado do `<canvas>`.
+9. O SVG é construído localmente e incorpora a imagem escolhida como `data:` quando houver logo, respeitando o tamanho personalizado selecionado.
+10. Para URLs de páginas do FlatIcon, o número do ícone é convertido localmente para o endereço de imagem do CDN; a URL que será transformada em QR Code continua sem ser enviada para a internet.
 
 ## Segurança e privacidade
 
@@ -222,7 +275,15 @@ O arquivo `_headers` adiciona cabeçalhos para Cloudflare Pages, incluindo:
 - `X-Content-Type-Options: nosniff`;
 - bloqueio de permissões desnecessárias.
 
-A política `connect-src 'none'` impede o JavaScript da página de realizar conexões de rede por `fetch`, XHR ou WebSocket.
+A política mantém `connect-src 'none'`, impedindo o JavaScript da página de realizar conexões de rede por `fetch`, XHR ou WebSocket.
+
+Para permitir a função solicitada de logo personalizada por URL, `img-src` autoriza exclusivamente, além dos recursos locais/data/blob já existentes, imagens HTTPS em subdomínios de `flaticon.com`:
+
+```text
+https://*.flaticon.com
+```
+
+Essa exceção é usada apenas pelo carregamento de imagem do navegador. A URL convertida em QR Code não é transmitida.
 
 ## Compatibilidade
 
@@ -237,6 +298,8 @@ O projeto utiliza APIs amplamente suportadas por navegadores modernos:
 
 A cópia para a área de transferência usa a Clipboard API em contexto HTTPS e possui fallback para navegadores compatíveis mais antigos.
 
+O uso de uma imagem externa do FlatIcon no PNG/SVG depende de o servidor da imagem permitir seu carregamento pelo navegador com as regras de origem aplicáveis. As páginas padrão do FlatIcon são convertidas para o endereço do CDN utilizado pelo próprio serviço.
+
 ## Licença
 
 O código deste projeto está sob licença MIT. Consulte `LICENSE`.
@@ -245,12 +308,15 @@ O encoder QR incluído em `vendor/` deriva do código QRCode for JavaScript (MIT
 
 A logomarca institucional é um ativo separado e não é automaticamente relicenciada pela licença MIT do código. Verifique as regras internas de uso da identidade visual antes de redistribuí-la.
 
+O símbolo de mapa incluído no projeto está associado ao recurso informado do FlatIcon nº 854878. O FlatIcon informa que o recurso gratuito exige atribuição; a referência foi mantida no rodapé da aplicação e detalhada em `THIRD_PARTY_NOTICES.md`.
+
 ## Diagnóstico de erros
 
-A versão corrigida informa a causa real quando a geração falha. Os dois arquivos essenciais que devem existir exatamente nestes caminhos são:
+A aplicação informa a causa quando a geração falha. Os arquivos essenciais que devem existir exatamente nestes caminhos são:
 
 ```text
 assets/logo.png
+assets/map.png
 vendor/qrcode-generator.js
 ```
 

@@ -5,18 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0a4f93">
   <meta name="color-scheme" content="light">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://*.flaticon.com; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
-  <title>Gerador de QR Code</title>
-  <link rel="icon" type="image/png" href="assets/logo.png">
+  <title>Gerador de QR CODE WinZip144</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand" aria-label="Gerador de QR Code">
-        <img class="brand-logo" src="assets/logo.png" alt="Logo institucional" width="52" height="52">
-        <h1>Gerador de QR Code</h1>
+      <div class="brand" aria-label="Gerador de QR CODE WinZip144">
+        <img class="brand-logo" src="assets/qr-code.png" alt="" aria-hidden="true">
+        <h1>Gerador de QR CODE WinZip144</h1>
       </div>
     </header>
 
@@ -51,6 +50,69 @@
             </select>
           </div>
 
+          <div class="field-group">
+            <label class="field-label" for="logo-select">Logo do QR Code</label>
+            <select id="logo-select" name="logo">
+              <option value="decc" selected>Logo DECC</option>
+              <option value="none">Sem logo</option>
+              <option value="map">Mapa</option>
+              <option value="custom">Personalizada</option>
+            </select>
+          </div>
+
+          <div id="custom-logo-options" class="custom-logo-options" hidden>
+            <div class="field-group">
+              <label class="field-label" for="custom-logo-source">Origem da imagem</label>
+              <select id="custom-logo-source" name="customLogoSource">
+                <option value="upload" selected>Upload</option>
+                <option value="url">URL do FlatIcon</option>
+              </select>
+            </div>
+
+            <div id="custom-logo-upload-panel" class="field-group">
+              <label class="field-label" for="custom-logo-file">Arquivo da imagem</label>
+              <input
+                id="custom-logo-file"
+                name="customLogoFile"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
+              >
+              <p class="field-help">Formatos aceitos: PNG, JPG/JPEG, WEBP e SVG.</p>
+            </div>
+
+            <div id="custom-logo-url-panel" class="field-group" hidden>
+              <label class="field-label" for="custom-logo-url">URL do FlatIcon</label>
+              <input
+                id="custom-logo-url"
+                name="customLogoUrl"
+                type="url"
+                inputmode="url"
+                autocomplete="url"
+                autocapitalize="none"
+                spellcheck="false"
+                placeholder="https://www.flaticon.com/free-icon/... ou URL direta da imagem"
+              >
+              <p class="field-help">Aceita a página do ícone no FlatIcon ou a URL direta de uma imagem hospedada em domínio do FlatIcon.</p>
+            </div>
+
+            <div class="field-group custom-logo-size-field">
+              <label class="field-label" for="custom-logo-size">
+                Tamanho da imagem <output id="custom-logo-size-value" for="custom-logo-size">18%</output>
+              </label>
+              <input
+                id="custom-logo-size"
+                name="customLogoSize"
+                type="range"
+                min="10"
+                max="30"
+                step="1"
+                value="18"
+                aria-describedby="custom-logo-size-help"
+              >
+              <p id="custom-logo-size-help" class="field-help">Ajuste o tamanho da imagem personalizada dentro do QR Code.</p>
+            </div>
+          </div>
+
           <div class="button-grid">
             <button class="button button-primary" type="submit">Gerar QR Code</button>
             <button class="button button-secondary" id="copy-button" type="button">Copiar URL</button>
@@ -58,7 +120,7 @@
           </div>
 
           <p id="form-status" class="status" role="status" aria-live="polite"></p>
-          <p id="privacy-note" class="privacy-note">Privacidade: o QR Code é gerado diretamente no seu navegador. Nenhum endereço informado é enviado ou armazenado.</p>
+          <p id="privacy-note" class="privacy-note">Privacidade: a URL convertida em QR Code é processada somente no navegador. Se você escolher uma logo personalizada por URL, apenas a imagem escolhida será carregada do domínio do FlatIcon.</p>
         </form>
 
         <section id="qr-result" class="result" aria-label="QR Code gerado" hidden>
@@ -71,7 +133,9 @@
       </section>
     </main>
 
-    <footer class="footer">Gerador de QR Code @WinZip144</footer>
+    <footer class="footer">
+      Gerador de QR Code @WinZip144 · Ícone de mapa: <a href="https://www.flaticon.com/free-icon/map_854878" target="_blank" rel="noopener noreferrer">FlatIcon</a>
+    </footer>
   </div>
 
   <script src="vendor/qrcode-generator.js"></script>
